@@ -11,6 +11,7 @@ const TimestampField = "date"
 
 type StructuredLogListener interface {
 	logEvent(timestamp int, log map[string]string)
+	done()
 }
 
 type LogReader struct {

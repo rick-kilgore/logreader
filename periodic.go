@@ -47,6 +47,10 @@ func (psl *PeriodicStatsLogger) logEvent(ts int, log map[string]string) {
 	}
 }
 
+func (psl *PeriodicStatsLogger) done() {
+	psl.logStats()
+}
+
 func (psl *PeriodicStatsLogger) logStats() {
 	if len(psl.hitsBySection) > 0 {
 		var sections []*SectionStats

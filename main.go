@@ -15,11 +15,21 @@ const topSectionCount = 3
 //	- use a heap for storing sections
 //	- listeners API
 //	- use csv field names
+//	- FIXED: reporting recovery could come late, if there are seconds without any traffic
+//	- FIXED: reporting recovery could be wrong if I have just advanced to the next second and haven't gotten all it's hits yet
+//		- FIXED: I need to only report for periods after largestTs has advanced past it!!!
 
 // notes for writeup
-// - terse local scope variable names in golang
-// - could have used heap for periodic reporter
-// - created AlertReporter for testing - but certainly seems useful
+//	- terse local scope variable names in golang
+//	- could have used heap for periodic reporter
+//	- created AlertReporter for testing - but certainly seems useful
+//	- it might report recovery for a time ts1 when I receive an early hit for ts2 > ts1
+//		- if so, it will subsequently report a new alert it gets more hits for ts1
+//		- should I give it some confidence buffer?  Just having received one datapoint for a future time period may not be enough
+//		- see test "errant recovery"
+//	- it's possible an alert start could be missed when a hit comes in for an earlier ts
+//		- WONT FIX: this is the larger buffer thing - big comment in alert.go
+//		- see test "log arrives too late"
 
 type MainReporter struct{}
 
