@@ -12,118 +12,93 @@ type AlertReporter interface {
 }
 
 type AlertListener struct {
-	limitAvg         float32
-	cyclicBufferHits []int
-	totalHits        int
-	largestTs        int
-	alertState       int
-	reporter         AlertReporter
+	limitAvg          float32
+	periodSeconds     int
+	cyclicBufferHits  []int
+	futureBufferSize  int
+	largestTs         int
+	largestReportedTs int
+	totalHits         int
+	alertState        int
+	reporter          AlertReporter
 }
 
-func NewAlertListener(periodSeconds int, limitAvg float32, reporter AlertReporter) *AlertListener {
+func NewAlertListener(periodSeconds, futureBufferSize int, limitAvg float32, reporter AlertReporter) *AlertListener {
 	return &AlertListener{
-		limitAvg:         limitAvg,
-		cyclicBufferHits: make([]int, periodSeconds),
-		largestTs:        -1,
-		alertState:       AllGood,
-		reporter:         reporter,
+		limitAvg:          limitAvg,
+		periodSeconds:     periodSeconds,
+		cyclicBufferHits:  make([]int, periodSeconds+futureBufferSize),
+		futureBufferSize:  futureBufferSize,
+		largestTs:         -1,
+		largestReportedTs: -1,
+		alertState:        AllGood,
+		reporter:          reporter,
 	}
 }
 
-func (al *AlertListener) logEvent(ts int, _ map[string]string) {
-	index := al.indexFor(ts)
+func (al *AlertListener) logEvent(logTs int, _ map[string]string) {
+	logTsIdx := al.indexFor(logTs)
 	if al.largestTs == -1 {
-		al.largestTs = ts
+		al.largestTs = logTs
+		al.largestReportedTs = logTs - 1
+		al.cyclicBufferHits[logTsIdx]++
+		return
 	}
 
-	if ts <= al.largestTs-len(al.cyclicBufferHits) {
-		// if ts is too far in the past, ignore it
+	if logTs <= al.largestReportedTs-al.periodSeconds {
+		// if logTs is too far in the past, ignore it
 		return
+	}
 
-	} else if ts < al.largestTs {
-		// if ts < al.largestTs, but recent, record the hit
-		al.cyclicBufferHits[index]++
+	if logTs > al.largestTs {
+		al.advanceReportingTo(logTs - al.futureBufferSize)
+	}
+
+	// if timestamps between largestTs and logTs are missing, clear out the data
+	// TODO: what if logTs is way in the future?  should only clear out the buffer once
+	for ts := al.largestTs + 1; ts <= logTs; ts++ {
+		i := al.indexFor(ts)
+		al.cyclicBufferHits[i] = 0
+		al.largestTs = logTs
+	}
+
+	al.cyclicBufferHits[logTsIdx]++
+	if logTs <= al.largestReportedTs {
 		al.totalHits++
-
-	} else {
-		// ts >= largestTs
-		if ts > al.largestTs {
-			// Checking immediately after ts advances could lead to a false recovery
-			// detection if hits for earlier times subsequently arrive.
-			al.checkAlerting()
-		}
-
-		// if timestamps between largestTs and ts are missing, clear out the data
-		// TODO: what if ts is way in the future?  should only clear out the buffer once
-		for _ts := al.largestTs + 1; _ts <= ts; _ts++ {
-			i := al.indexFor(_ts)
-			al.totalHits -= al.cyclicBufferHits[i]
-			al.cyclicBufferHits[i] = 0
-
-			// we may have recovered from an alert during periods of inactivity
-			if _ts < ts && al.alertState == Alerting {
-				al.largestTs = _ts
-				al.checkAlerting()
-			}
-		}
-
-		al.largestTs = ts
-		al.cyclicBufferHits[index]++
-		al.totalHits++
+		al.checkAlertingAt(al.largestReportedTs)
 	}
 }
 
 func (al *AlertListener) done() {
-	al.checkAlerting()
 }
 
 func (al *AlertListener) indexFor(ts int) int {
+	if ts < 0 {
+		ts = ts + len(al.cyclicBufferHits)
+	}
 	return ts % len(al.cyclicBufferHits)
 }
 
-func (al *AlertListener) checkAlerting() {
-	avgHits := float32(al.totalHits) / float32(len(al.cyclicBufferHits))
-	if al.alertState == AllGood && avgHits >= al.limitAvg {
-		al.alertState = Alerting
-		al.reporter.AlertStarted(al.determineAlertTime(), avgHits)
-
-	} else if al.alertState == Alerting && avgHits < al.limitAvg {
-		al.alertState = AllGood
-		al.reporter.AlertRecovered(al.largestTs, avgHits)
+func (al *AlertListener) advanceReportingTo(advancedToTs int) {
+	for nextTs := al.largestReportedTs + 1; nextTs <= advancedToTs; nextTs++ {
+		oldTs := nextTs - al.periodSeconds
+		oldIdx, nextIdx := al.indexFor(oldTs), al.indexFor(nextTs)
+		al.totalHits -= al.cyclicBufferHits[oldIdx]
+		al.totalHits += al.cyclicBufferHits[nextIdx]
+		al.checkAlertingAt(nextTs)
+		al.cyclicBufferHits[oldIdx] = 0
+		al.largestReportedTs = nextTs
 	}
 }
 
-// Since logs can come out of order, it's possible to learn that an
-// alert happened at a time earlier than the current value of largestTs.
-// This method checks to see if that was the case.  Most of the time, it
-// should probably return largestTs.
-//
-// NOTE: this logic will not catch a potential alert where earlier hit
-// counts that have been lost (overwritten) from the circular buffer are
-// required to tip the average hit count over the limit.
-//
-// This miss could be fixed by making the circular buffer larger than the
-// alerting period by some error of margin number of seconds.  The logic
-// in this module would become a bit more complex in doing so.
-//
-// In addition, with the given problem statement of an alert time period
-// of 120 seconds, it seems pretty unlikely that this will happen.
-func (al *AlertListener) determineAlertTime() int {
-	periodSeconds := len(al.cyclicBufferHits)
-	avgHits := float32(al.totalHits) / float32(periodSeconds)
-	if avgHits < al.limitAvg {
-		return -1
-	}
+func (al *AlertListener) checkAlertingAt(reportTs int) {
+	avgHits := float32(al.totalHits) / float32(al.periodSeconds)
+	if al.alertState == AllGood && avgHits >= al.limitAvg {
+		al.alertState = Alerting
+		al.reporter.AlertStarted(reportTs, avgHits)
 
-	ts := al.largestTs
-	totalHits := al.totalHits
-	for {
-		tsHits := al.cyclicBufferHits[al.indexFor(ts)]
-		if float32(totalHits-tsHits)/float32(periodSeconds) < al.limitAvg {
-			break
-		}
-		totalHits -= tsHits
-		ts--
+	} else if al.alertState == Alerting && avgHits < al.limitAvg {
+		al.alertState = AllGood
+		al.reporter.AlertRecovered(reportTs, avgHits)
 	}
-	return ts
 }

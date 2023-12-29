@@ -26,7 +26,7 @@ func NewPeriodicStatsLogger(periodSeconds int) *PeriodicStatsLogger {
 		periodSeconds: periodSeconds,
 		periodStart:   0,
 		sectionRegex:  re,
-		hitsBySection: map[string]*SectionStats{}, // TODO: replace with container/heap impl
+		hitsBySection: map[string]*SectionStats{},
 	}
 }
 

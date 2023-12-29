@@ -7,6 +7,7 @@ import (
 
 const statsDurationSeconds = 10
 const alertDurationSeconds = 120
+const futureBufferSize = 5
 const alertAvgHitsLimit = 20.0
 const topSectionCount = 3
 
@@ -51,7 +52,7 @@ func main() {
 
 	logReader := NewSimpleStreamReader()
 	logReader.AddListener(NewPeriodicStatsLogger(statsDurationSeconds))
-	logReader.AddListener(NewAlertListener(alertDurationSeconds, alertAvgHitsLimit, &MainReporter{}))
+	logReader.AddListener(NewAlertListener(alertDurationSeconds, futureBufferSize, alertAvgHitsLimit, &MainReporter{}))
 	err = logReader.ProcessStructuredLog(f)
 	if err != nil {
 		fmt.Printf("%v\n", err)
