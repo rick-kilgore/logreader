@@ -51,15 +51,9 @@ func (al *AlertListener) logEvent(logTs int, _ map[string]string) {
 	}
 
 	if logTs > al.largestTs {
+		// NOTE: advanceReportingTo() also clears out the cells holding
+		// older data so we can reuse them for future hits.
 		al.advanceReportingTo(logTs - al.futureBufferSize)
-	}
-
-	// if timestamps between largestTs and logTs are missing, clear out the data
-	// TODO: what if logTs is way in the future?  should only clear out the buffer once
-	for ts := al.largestTs + 1; ts <= logTs; ts++ {
-		i := al.indexFor(ts)
-		al.cyclicBufferHits[i] = 0
-		al.largestTs = logTs
 	}
 
 	al.cyclicBufferHits[logTsIdx]++
