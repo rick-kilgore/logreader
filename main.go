@@ -48,7 +48,7 @@ func main() {
 		fmt.Printf("failed to open %s: %v\n", csvfile, err)
 	}
 
-	logReader := NewLogReader()
+	logReader := NewSimpleStreamReader()
 	logReader.AddListener(NewPeriodicStatsLogger(statsDurationSeconds))
 	logReader.AddListener(NewAlertListener(alertDurationSeconds, alertAvgHitsLimit, &MainReporter{}))
 	err = logReader.ProcessStructuredLog(f)

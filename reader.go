@@ -14,24 +14,24 @@ type StructuredLogListener interface {
 	done()
 }
 
-type LogReader struct {
+type SimpleStreamReader struct {
 	listeners []StructuredLogListener
 	fields    map[string]int
 }
 
-func NewLogReader() *LogReader {
-	return &LogReader{
+func NewSimpleStreamReader() *SimpleStreamReader {
+	return &SimpleStreamReader{
 		fields: map[string]int{},
 	}
 }
 
-func (r *LogReader) AddListener(listener StructuredLogListener) {
+func (r *SimpleStreamReader) AddListener(listener StructuredLogListener) {
 	if r.findListener(listener) < 0 {
 		r.listeners = append(r.listeners, listener)
 	}
 }
 
-func (r *LogReader) findListener(target StructuredLogListener) int {
+func (r *SimpleStreamReader) findListener(target StructuredLogListener) int {
 	for i, listener := range r.listeners {
 		if listener == target {
 			return i
@@ -40,7 +40,7 @@ func (r *LogReader) findListener(target StructuredLogListener) int {
 	return -1
 }
 
-func (r *LogReader) RemoveListener(target StructuredLogListener) bool {
+func (r *SimpleStreamReader) RemoveListener(target StructuredLogListener) bool {
 	for i, listener := range r.listeners {
 		if listener == target {
 			r.listeners = append(r.listeners[:i], r.listeners[i+1:]...)
@@ -50,7 +50,7 @@ func (r *LogReader) RemoveListener(target StructuredLogListener) bool {
 	return false
 }
 
-func (r *LogReader) ProcessStructuredLog(stream io.Reader) error {
+func (r *SimpleStreamReader) ProcessStructuredLog(stream io.Reader) error {
 	rdr := csv.NewReader(stream)
 	r.readHeader(rdr)
 
@@ -74,7 +74,7 @@ func (r *LogReader) ProcessStructuredLog(stream io.Reader) error {
 	return nil
 }
 
-func (r *LogReader) readHeader(rdr *csv.Reader) error {
+func (r *SimpleStreamReader) readHeader(rdr *csv.Reader) error {
 	record, err := rdr.Read()
 	if err != nil {
 		return err
@@ -85,7 +85,7 @@ func (r *LogReader) readHeader(rdr *csv.Reader) error {
 	return nil
 }
 
-func (r *LogReader) parseRecord(record []string) (int, map[string]string, error) {
+func (r *SimpleStreamReader) parseRecord(record []string) (int, map[string]string, error) {
 	if len(record) != len(r.fields) {
 		return -1, nil, fmt.Errorf("expected %d fields, got %d: %v", len(r.fields), len(record), record)
 	}
