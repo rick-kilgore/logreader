@@ -21,6 +21,7 @@ const topSectionCount = 3
 
 // notes for writeup
 //	- terse local scope variable names in golang
+//		- no spaces around +, -
 //	- could have used heap for periodic reporter
 //	- created AlertReporter for testing - but certainly seems useful
 //	- it might report recovery for a time ts1 when I receive an early hit for ts2 > ts1

@@ -33,7 +33,7 @@ func NewPeriodicStatsLogger(periodSeconds int) *PeriodicStatsLogger {
 func (psl *PeriodicStatsLogger) logEvent(ts int, log map[string]string) {
 	if ts-psl.periodStart >= psl.periodSeconds {
 		psl.logStats()
-		psl.periodStart = ts
+		psl.periodStart = ts - (ts % psl.periodSeconds)
 		psl.hitsBySection = map[string]*SectionStats{}
 	}
 	section := psl.sectionRegex.FindString(log[RequestFieldName])
