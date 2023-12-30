@@ -52,7 +52,9 @@ func (r *SimpleStreamReader) RemoveListener(target StructuredLogListener) bool {
 
 func (r *SimpleStreamReader) ProcessStructuredLog(stream io.Reader) error {
 	rdr := csv.NewReader(stream)
-	r.readHeader(rdr)
+	if err := r.readHeader(rdr); err != nil && err != io.EOF {
+		return err
+	}
 
 	for {
 		record, err := rdr.Read()
