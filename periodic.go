@@ -13,20 +13,26 @@ type SectionStats struct {
 
 const RequestFieldName = "request"
 
+type PeriodicReporter interface {
+	ReportStats(timestamp, periodSeconds int, stats []*SectionStats)
+}
+
 type PeriodicStatsLogger struct {
 	periodSeconds int
 	periodStart   int
 	sectionRegex  *regexp.Regexp
 	hitsBySection map[string]*SectionStats
+	reporter      PeriodicReporter
 }
 
-func NewPeriodicStatsLogger(periodSeconds int) *PeriodicStatsLogger {
+func NewPeriodicStatsLogger(periodSeconds int, reporter PeriodicReporter) *PeriodicStatsLogger {
 	re := regexp.MustCompile("(/[^/\\s]+)")
 	return &PeriodicStatsLogger{
 		periodSeconds: periodSeconds,
 		periodStart:   0,
 		sectionRegex:  re,
 		hitsBySection: map[string]*SectionStats{},
+		reporter:      reporter,
 	}
 }
 
@@ -61,11 +67,6 @@ func (psl *PeriodicStatsLogger) logStats() {
 			return sections[i].hits > sections[j].hits ||
 				(sections[i].hits == sections[j].hits && sections[i].name < sections[j].name)
 		})
-		fmt.Printf("%d: top sections for last %d seconds:", psl.periodStart+psl.periodSeconds, psl.periodSeconds)
-		for i := 0; i < topSectionCount && i < len(sections); i++ {
-			stats := sections[i]
-			fmt.Printf(" %s=%d", stats.name, stats.hits)
-		}
-		fmt.Println()
+		psl.reporter.ReportStats(psl.periodStart+psl.periodSeconds, psl.periodSeconds, sections)
 	}
 }
