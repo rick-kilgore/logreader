@@ -37,6 +37,10 @@ func (r *MainReporter) ReportStats(timestamp, periodSeconds int, sectionStats []
 }
 
 func main() {
+	if len(os.Args) < 2 || os.Args[1] == "-h" || os.Args[1] == "--help" {
+		fmt.Fprintf(os.Stderr, "usage: go run . <input-csv-file>\n")
+		os.Exit(1)
+	}
 	csvfile := os.Args[1]
 	f, err := os.Open(csvfile)
 	if err != nil {
