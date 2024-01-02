@@ -8,7 +8,7 @@ import (
 const statsDurationSeconds = 10
 const alertDurationSeconds = 120
 const futureBufferSize = 5
-const alertAvgHitsLimit = 20.0
+const alertAvgHitsLimit = 10.0
 const topSectionCount = 3
 
 // MainReporter implements the AlertListener's AlertReporter interface and the
