@@ -1,5 +1,12 @@
-Run the program with `go run . sample.csv`.  If you don't have go installed but
-are running an M1 mac, you should might be able to run `./logreader sample.csv`
+To run the program, use the following commands:
+  > go mod tidy
+  > go run . sample.csv
+
+To run the tests, run the following (also requires `go mod tidy` first):
+  > go test -count=1 -v
+
+If you are running a mac with an Apple cpu and don't have go setup, you might
+be able to just run `./logreader sample.csv`
 
 I think it is implied by the problem statement, but just to be sure, I
 interpreted the 2-minute alert period as a rolling window, rather than a check
