@@ -6,11 +6,24 @@ const (
 	Alerting
 )
 
+// This interface is used by the AlertListener to report alert state back to
+// the caller.  It must be implemented by the caller and passed to
+// NewAlertListener().
 type AlertReporter interface {
 	AlertStarted(timestamp int, avgHits float32)
 	AlertRecovered(timestamp int, avgHits float32)
 }
 
+// AlertListener is the entry point for using the alerting logic in this file.
+// It implements the SimpleStreamReader's associated interface
+// StructuredLogListener.
+//
+// AlertListener keeps a cyclic buffer if size periodSeconds + futureBufferSize.
+// The futureBufferSize space is a staging space where hits for the most
+// recently seen timestamps can accumulate until we have confidence that we all
+// hits have been reported.  Once the rolling window advances far enough that a
+// given timestamp is no longer in the futureBufferSize space, then it is
+// analyzed for a potential alert or recovery event.
 type AlertListener struct {
 	limitAvg          float32
 	periodSeconds     int
@@ -73,8 +86,12 @@ func (al *AlertListener) indexFor(ts int) int {
 	return ts % len(al.cyclicBufferHits)
 }
 
-func (al *AlertListener) advanceReportingTo(advancedToTs int) {
-	for nextTs := al.largestReportedTs + 1; nextTs <= advancedToTs; nextTs++ {
+// This method advances the rolling window one or more seconds until
+// advanceToTs is moved from the futureBufferSize space into the portion of the
+// cyclic buffer can be analyzed for alert events.  As it advances, it runs the
+// alert analysis for each newly included timestamp.
+func (al *AlertListener) advanceReportingTo(advanceToTs int) {
+	for nextTs := al.largestReportedTs + 1; nextTs <= advanceToTs; nextTs++ {
 		oldTs := nextTs - al.periodSeconds
 		oldIdx, nextIdx := al.indexFor(oldTs), al.indexFor(nextTs)
 		al.totalHits -= al.cyclicBufferHits[oldIdx]

@@ -9,11 +9,17 @@ import (
 
 const TimestampField = "date"
 
+// After parsing the log events, SimpleStreamReader sends the data to the
+// caller by calling logEvent() on any passed-in StructureLogListeners.  The
+// caller must implement this interface to receive the data.
 type StructuredLogListener interface {
 	logEvent(timestamp int, log map[string]string)
 	done()
 }
 
+// SimpleStreamReader reads log events from a stream (io.Reader) and passes the
+// parsed data fields in a map[string]string, along witg the log's timestamp to
+// any registered StructureLogListeners.
 type SimpleStreamReader struct {
 	listeners []StructuredLogListener
 	fields    map[string]int

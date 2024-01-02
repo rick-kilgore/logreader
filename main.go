@@ -11,12 +11,8 @@ const futureBufferSize = 5
 const alertAvgHitsLimit = 20.0
 const topSectionCount = 3
 
-// notes for writeup
-//	- terse local scope variable names in golang
-//		- no spaces around +, -
-//	- could have used heap for periodic reporter
-//	- created AlertReporter for testing - but certainly seems useful
-
+// MainReporter implements the AlertListener's AlertReporter interface and the
+// PeriodicStatsLogger's PeriodicReporter interface.
 type MainReporter struct{}
 
 func (r *MainReporter) AlertStarted(timestamp int, avgHits float32) {
