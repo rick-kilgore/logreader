@@ -9,9 +9,17 @@ recent ones as I roll the window.
 
 To deal with the out of order log messages in the input, I chose to make the
 buffer slightly larger than 2 minutes, so that I can accumulate the hit counts
-for the most recent timestamps a bit before analyzing them for possible alerts.
-I didn't bother to do the same for the periodic logger, because I figured it
-wasn't important enough for that use case to add the complexity.
+for the most recent timestamps for a bit befbre analyzing them for possible
+alerts.  The reason I chose this route was because I first tried without the
+extra buffer and there were a few edge cases that I thought made the code
+hard to understand.  Adding the futureBufferSize additional buffer slots
+succeeded in making the code simpler, IMO.
+
+I didn't bother with the rolling window (nor the additional buffer) for the
+periodic logger, because I figured it wasn't important enough for that use case
+to add the complexity.  Some hits will be reported in the next 10s interval due
+to the out of order arrivals, but it should average out in the end, so should
+still supply a reasonable idea of what is happening.
 
 A note on variable names.  It is considered idiomatic Go to use very short
 names for variables in the local scope whenever doing so is reasonably clear.
